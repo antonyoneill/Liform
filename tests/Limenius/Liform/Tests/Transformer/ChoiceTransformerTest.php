@@ -100,7 +100,7 @@ class ChoiceTransformerTest extends LiformTestCase
 
         $this->assertArrayNotHasKey('enum', $transformed['properties']['favoriteColours']);
         $this->assertArrayNotHasKey('enum_titles', $transformed['properties']['favoriteColours']);
-        $this->assertEquals('null', $transformed['properties']['favoriteColours']['type']);
+        $this->assertEquals('string', $transformed['properties']['favoriteColours']['type']);
     }
 
     /**
