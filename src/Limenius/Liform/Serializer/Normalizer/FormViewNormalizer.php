@@ -21,6 +21,10 @@ class FormViewNormalizer implements NormalizerInterface
      * Normalize the children of the form as an array, not an object.
      */
     const CHILDREN_AS_ARRAY = 'ChildrenAsArray';
+    /**
+     * Normalise the children by producing an array of the name of the child if the value is true.
+     */
+    const CHILDREN_AS_TRUE_NAMES = 'ChildrenAsTrueNames';
 
     /**
      * {@inheritdoc}
@@ -29,8 +33,8 @@ class FormViewNormalizer implements NormalizerInterface
     {
         $useArray = $this->useArrayForChildren($form);
 
-        if (!empty($form->children)) {
-            $serializedForm = $useArray ? array() : (object) array();
+        if ( ! empty($form->children)) {
+            $serializedForm = $useArray ? [] : (object) [];
 
             foreach ($form->children as $name => $child) {
                 // Skip empty values because
@@ -38,10 +42,19 @@ class FormViewNormalizer implements NormalizerInterface
                 if (empty($child->children) && ($child->vars['value'] === null || $child->vars['value'] === '')) {
                     continue;
                 }
+
                 $normalChild = $this->normalize($child);
 
                 if ($useArray) {
-                    $serializedForm[] = $normalChild;
+                    $returnNameAsChild = $this->useNameAsChild($form);
+
+                    if ($returnNameAsChild) {
+                        if ($normalChild === true) {
+                            $serializedForm[] = "$name";
+                        }
+                    } else {
+                        $serializedForm[] = $normalChild;
+                    }
                 } else {
                     $serializedForm->{$name} = $normalChild;
                 }
@@ -59,7 +72,7 @@ class FormViewNormalizer implements NormalizerInterface
 
             //If this is an iterable it's likely that the widget is expecting an array, not stdObject
             if ($value instanceof \Traversable && iterator_count($value) === 0 && $useArray) {
-                return array();
+                return [];
             }
 
             return $value;
@@ -78,16 +91,42 @@ class FormViewNormalizer implements NormalizerInterface
      * In some cases the children of the form should be serialized as an array. This is controlled by a var on the
      * FormView.
      *
-     * @param $object
+     * @param $form
      *
      * @return bool
      *
      * @see FormViewNormalizer::NORMALIZATION_STRATEGY
      * @see FormViewNormalizer::CHILDREN_AS_ARRAY
+     * @see FormViewNormalizer::useNameAsChild
      */
-    protected function useArrayForChildren($object)
+    protected function useArrayForChildren($form)
     {
-        return key_exists(self::NORMALIZATION_STRATEGY, $object->vars)
-            && $object->vars[self::NORMALIZATION_STRATEGY] === self::CHILDREN_AS_ARRAY;
+        $strategy = key_exists(
+            self::NORMALIZATION_STRATEGY,
+            $form->vars
+        ) ? $form->vars[self::NORMALIZATION_STRATEGY] : null;
+
+        return $strategy === self::CHILDREN_AS_ARRAY || $this->useNameAsChild($form);
+    }
+
+    /**
+     * In some cases the children of the form should be serialized as an array of names where the value is true. This is
+     * controlled by a var on the FormView.
+     *
+     * @param $form
+     *
+     * @return bool
+     *
+     * @see FormViewNormalizer::NORMALIZATION_STRATEGY
+     * @see FormViewNormalizer::CHILDREN_AS_TRUE_NAMES
+     */
+    protected function useNameAsChild($form)
+    {
+        $strategy = key_exists(
+            self::NORMALIZATION_STRATEGY,
+            $form->vars
+        ) ? $form->vars[self::NORMALIZATION_STRATEGY] : null;
+
+        return $strategy === self::CHILDREN_AS_TRUE_NAMES;
     }
 }
